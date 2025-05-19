@@ -1,0 +1,89 @@
+import numpy as np
+from scipy.io import loadmat
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+# Завантаження даних
+data = loadmat('../data/digits.mat')
+# Залежить від структури матфайлу - треба уточнити ключі, імовірно 'X','y'
+X = data['X']   # приклади
+y = data['y'].ravel()  # цільові значення
+
+# Розділення на train/test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, random_state=42, stratify=y
+)
+
+# Нормалізація
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+results = []
+
+# Одношарова (100 нейронів)
+clf1 = MLPClassifier(
+    hidden_layer_sizes=(100,),
+    solver='adam',
+    activation='tanh',
+    max_iter=100,
+    random_state=42
+)
+clf1.fit(X_train, y_train)
+results.append({
+    'model': 'MLP (100)',
+    'train_acc': accuracy_score(y_train, clf1.predict(X_train)),
+    'test_acc':  accuracy_score(y_test, clf1.predict(X_test))
+})
+
+# Двошарова [3,3] (активації нема як різні в шарі; тільки одна на все)
+# Вибираємо по черзі 'tanh' та 'relu'
+for act in ['tanh', 'relu']:
+    clf2 = MLPClassifier(
+        hidden_layer_sizes=(3,3),
+        solver='adam',
+        activation=act,
+        max_iter=100,
+        random_state=42
+    )
+    clf2.fit(X_train, y_train)
+    results.append({
+        'model': f'MLP (3,3) {act}',
+        'train_acc': accuracy_score(y_train, clf2.predict(X_train)),
+        'test_acc': accuracy_score(y_test, clf2.predict(X_test))
+    })
+
+# Тришарова [20,7,10] (тільки одна активація у sklearn)
+# Візьмемо 'tanh', 'relu'
+for act in ['tanh', 'relu']:
+    clf3 = MLPClassifier(
+        hidden_layer_sizes=(20,7,10),
+        solver='adam',
+        activation=act,
+        max_iter=100,
+        random_state=42
+    )
+    clf3.fit(X_train, y_train)
+    results.append({
+        'model': f'MLP (20,7,10) {act}',
+        'train_acc': accuracy_score(y_train, clf3.predict(X_train)),
+        'test_acc': accuracy_score(y_test, clf3.predict(X_test))
+    })
+
+svc = SVC(kernel='rbf', gamma='scale', random_state=42)
+svc.fit(X_train, y_train)
+results.append({
+    'model': 'SVM (RBF)',
+    'train_acc': accuracy_score(y_train, svc.predict(X_train)),
+    'test_acc': accuracy_score(y_test, svc.predict(X_test))
+})
+
+print("{:20} | Train Acc | Test Acc".format("Model"))
+print("-"*50)
+for res in results:
+    print("{:20} | {:.4f}    | {:.4f}".format(
+        res['model'], res['train_acc'], res['test_acc']
+    ))
